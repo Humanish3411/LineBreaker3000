@@ -7,6 +7,7 @@ import java.util.regex.*;
 public class LineBreaker3000 {
     //rhymes with grug
     public static void main(String[] args) {
+		System.out.println("LineBreaker3000 by Jordon \"Humanish\" Olson. Some rights reserved."
         Scanner scanner = new Scanner(System.in);
         Random random = new Random();
         
@@ -20,7 +21,8 @@ public class LineBreaker3000 {
        while (!validInput) {
     System.out.println("Choose mode: (1) File mode, (2) DEF Folder mode, (3) Custom Extension Folder mode, " +
                        "(4) Strict Mode, (5) Profanity Filter Mode, (6) CSV to ASCII Table Mode, " +
-                       "(7) Fancy for Words.csv Mode, or (8) CSV Column Replacement Mode");
+                       "(7) Fancy for Words.csv Mode, (8) CSV Column Replacement Mode, "
+					   + " or (9) for CSVFixer Mode.");
     try {
         mode = scanner.nextInt();
         if (mode >= 1 && mode <= 8) {
@@ -143,29 +145,53 @@ public class LineBreaker3000 {
                 System.out.println("Running in Profanity Filter Mode - removing lines with offensive content");
                 processFiles(inputFiles, outputFilePath, false, true);
             } else if (mode == 6) {
-                // CSV to ASCII Table Mode
-                System.out.println("Enter CSV file path (you can include quotes if needed):");
-                String filePath = removeQuotes(scanner.nextLine());
-                
-                System.out.println("Choose table style: (1) Simple, (2) Classic, (3) Fancy");
-                int tableStyle = 1;
-                try {
-                    tableStyle = scanner.nextInt();
-                    if (tableStyle < 1 || tableStyle > 3) {
-                        System.out.println("Invalid selection. Using Simple style (1) as default.");
-                        tableStyle = 1;
-                    }
-                } catch (InputMismatchException e) {
-                    System.out.println("Invalid input. Using Simple style (1) as default.");
-                }
-                scanner.nextLine(); // consume newline
-                
-                System.out.println("Does the CSV have a header row? (y/n):");
-                String headerChoice = scanner.nextLine().trim().toLowerCase();
-                boolean hasHeader = headerChoice.equals("y") || headerChoice.equals("yes");
-                
-                System.out.println("Running in CSV to ASCII Table Mode");
-                convertCsvToAsciiTable(filePath, outputFilePath, tableStyle, hasHeader);
+    // CSV to ASCII Table Mode
+    System.out.println("Enter CSV file path (you can include quotes if needed):");
+    String filePath = removeQuotes(scanner.nextLine());
+    
+    System.out.println("Choose output format: (1) ASCII, (2) HTML");
+    int outputFormat = 1;
+    try {
+        outputFormat = scanner.nextInt();
+        if (outputFormat < 1 || outputFormat > 2) {
+            System.out.println("Invalid selection. Using ASCII format (1) as default.");
+            outputFormat = 1;
+        }
+    } catch (InputMismatchException e) {
+        System.out.println("Invalid input. Using ASCII format (1) as default.");
+    }
+    scanner.nextLine(); // consume newline
+    
+    if (outputFormat == 1) {
+        // Original ASCII table functionality
+        System.out.println("Choose table style: (1) Simple, (2) Classic, (3) Fancy");
+        int tableStyle = 1;
+        try {
+            tableStyle = scanner.nextInt();
+            if (tableStyle < 1 || tableStyle > 3) {
+                System.out.println("Invalid selection. Using Simple style (1) as default.");
+                tableStyle = 1;
+            }
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid input. Using Simple style (1) as default.");
+        }
+        scanner.nextLine(); // consume newline
+        
+        System.out.println("Does the CSV have a header row? (y/n):");
+        String headerChoice = scanner.nextLine().trim().toLowerCase();
+        boolean hasHeader = headerChoice.equals("y") || headerChoice.equals("yes");
+        
+        System.out.println("Running in CSV to ASCII Table Mode");
+        convertCsvToAsciiTable(filePath, outputFilePath, tableStyle, hasHeader);
+    } else {
+        // HTML table functionality
+        System.out.println("Does the CSV have a header row? (y/n):");
+        String headerChoice = scanner.nextLine().trim().toLowerCase();
+        boolean hasHeader = headerChoice.equals("y") || headerChoice.equals("yes");
+        
+        System.out.println("Running in CSV to HTML Table Mode");
+        convertCsvToHtmlTable(filePath, hasHeader);
+    }
             } else if (mode == 7) {
                 // Fancy for Words.csv Mode
                 System.out.println("Enter CSV file path (you can include quotes if needed):");
@@ -189,6 +215,14 @@ public class LineBreaker3000 {
     System.out.println("Running in CSV Column Replacement Mode");
     replaceCsvColumnValues(filePath, mappingFilePath, outputFilePath);
 }
+else if (mode == 9) {
+    // CSVFixer Mode
+    System.out.println("Enter CSV file path (you can include quotes if needed):");
+    String filePath = removeQuotes(scanner.nextLine());
+    
+    System.out.println("Running in CSVFixer Mode");
+    fixCsvFile(filePath, outputFilePath);
+}
 
             
         } catch (IOException e) {
@@ -198,6 +232,127 @@ public class LineBreaker3000 {
             scanner.close();
         }
     }
+ 
+ /**
+ * Fixes a CSV file by ensuring all rows have the same number of columns as the header.
+ * - Rows with fewer columns are merged with rows above them
+ * - Rows with more columns are trimmed
+ */
+private static void fixCsvFile(String csvFilePath, String outputFilePath) throws IOException {
+    // Read all lines from the CSV file
+    List<String> csvLines = Files.readAllLines(Paths.get(csvFilePath));
+    
+    if (csvLines.isEmpty()) {
+        System.out.println("CSV file is empty!");
+        return;
+    }
+    
+    // Detect separator and parse the header row
+    String separator = detectSeparator(csvLines.get(0));
+    List<String> headerColumns = parseCsvLine(csvLines.get(0), separator);
+    int expectedColumnCount = headerColumns.size();
+    
+    System.out.println("CSV header has " + expectedColumnCount + " columns");
+    
+    List<String> fixedLines = new ArrayList<>();
+    fixedLines.add(csvLines.get(0)); // Add header line unchanged
+    
+    List<String> lastRowData = new ArrayList<>(headerColumns); // Initialize with header for first row comparison
+    int mergedRows = 0;
+    int trimmedRows = 0;
+    
+    // Process each data row (skip header)
+    for (int i = 1; i < csvLines.size(); i++) {
+        String currentLine = csvLines.get(i);
+        List<String> currentColumns = parseCsvLine(currentLine, separator);
+        
+        if (currentColumns.size() < expectedColumnCount) {
+            // This row has fewer columns than expected - merge with previous row
+            mergedRows++;
+            
+            // Get the columns from the previous fixed row
+            List<String> mergedColumns = new ArrayList<>(lastRowData);
+            
+            // Add content from current row to appropriate columns of the previous row
+            for (int j = 0; j < currentColumns.size(); j++) {
+                String existingContent = mergedColumns.get(j);
+                String additionalContent = currentColumns.get(j);
+                
+                if (!additionalContent.trim().isEmpty()) {
+                    if (!existingContent.trim().isEmpty()) {
+                        // Add space between content for readability
+                        mergedColumns.set(j, existingContent + " " + additionalContent);
+                    } else {
+                        mergedColumns.set(j, additionalContent);
+                    }
+                }
+            }
+            
+            // Update the last line in the fixed lines list
+            String mergedLine = convertColumnsToLine(mergedColumns, separator);
+            fixedLines.set(fixedLines.size() - 1, mergedLine);
+            
+            // Update the last row data for next comparison
+            lastRowData = mergedColumns;
+        } else if (currentColumns.size() > expectedColumnCount) {
+            // This row has more columns than expected - trim extra columns
+            trimmedRows++;
+            List<String> trimmedColumns = currentColumns.subList(0, expectedColumnCount);
+            String fixedLine = convertColumnsToLine(trimmedColumns, separator);
+            fixedLines.add(fixedLine);
+            
+            // Update the last row data for next comparison
+            lastRowData = trimmedColumns;
+        } else {
+            // This row has the correct number of columns - keep as is
+            fixedLines.add(currentLine);
+            
+            // Update the last row data for next comparison
+            lastRowData = currentColumns;
+        }
+    }
+    
+    // Write fixed lines to output file
+    Files.write(Paths.get(outputFilePath), fixedLines);
+    
+    System.out.println("CSV fixing completed successfully!");
+    System.out.println("Merged " + mergedRows + " rows with too few columns");
+    System.out.println("Trimmed " + trimmedRows + " rows with too many columns");
+    System.out.println("Output file: " + new File(outputFilePath).getAbsolutePath());
+}
+
+/**
+ * Converts a list of column values back to a CSV line
+ */
+private static String convertColumnsToLine(List<String> columns, String separator) {
+    StringBuilder line = new StringBuilder();
+    
+    for (int i = 0; i < columns.size(); i++) {
+        String value = columns.get(i);
+        
+        // Check if we need to quote this value
+        boolean needsQuotes = value.contains(separator) || 
+                             value.contains("\"") || 
+                             value.contains("\n") || 
+                             value.contains(",");
+        
+        if (needsQuotes) {
+            // Escape any quotes in the value
+            value = value.replace("\"", "\"\"");
+            line.append("\"").append(value).append("\"");
+        } else {
+            line.append(value);
+        }
+        
+        // Add separator between columns, but not after the last column
+        if (i < columns.size() - 1) {
+            line.append(separator);
+        }
+    }
+    
+    return line.toString();
+}
+
  /**
  * Converts a CSV file to a specialized ASCII table for Words.csv
  * - First and third columns get 8 characters each
@@ -1408,6 +1563,271 @@ private static String[] wrapText(String text, int width) {
         }
     }
     
+/**
+ * Converts a CSV file to HTML tables, splitting into multiple files if needed
+ * - Each output file will be maximum 600KB
+ * - Headers are repeated in each file
+ * - Files are named based on source file with a sequence number
+ */
+private static void convertCsvToHtmlTable(String csvFilePath, boolean hasHeader) throws IOException {
+    // Read all lines from the CSV file
+    List<String> csvLines = Files.readAllLines(Paths.get(csvFilePath));
+    
+    if (csvLines.isEmpty()) {
+        System.out.println("CSV file is empty!");
+        return;
+    }
+    
+    // Parse CSV data
+    List<List<String>> data = new ArrayList<>();
+    String separator = detectSeparator(csvLines.get(0));
+    
+    for (String line : csvLines) {
+        List<String> row = parseCsvLine(line, separator);
+        data.add(row);
+    }
+    
+    // Extract header row if exists
+    List<String> headerRow = null;
+    int dataStartIndex = 0;
+    
+    if (hasHeader && !data.isEmpty()) {
+        headerRow = data.get(0);
+        dataStartIndex = 1;
+    }
+    
+    // Prepare base filename without extension
+    String baseFileName = new File(csvFilePath).getName();
+    if (baseFileName.contains(".")) {
+        baseFileName = baseFileName.substring(0, baseFileName.lastIndexOf('.'));
+    }
+    
+    // Calculate approximate row size to estimate how many rows per file
+    int approxRowSize = estimateRowSize(data);
+    int maxRowsPerFile = Math.max(10, (600 * 1024) / approxRowSize); // Ensure at least 10 rows per file
+    
+    System.out.println("Estimated row size: " + approxRowSize + " bytes");
+    System.out.println("Maximum rows per file: " + maxRowsPerFile);
+    
+    // Generate HTML tables with a maximum of 600KB per file
+    int fileCounter = 1;
+    int processedRows = dataStartIndex;
+    List<String> generatedFiles = new ArrayList<>();
+    
+    // Track last non-empty values for each column
+    List<String> lastNonEmptyValues = new ArrayList<>();
+    if (headerRow != null) {
+        // Initialize with header values (or null if empty)
+        for (String header : headerRow) {
+            lastNonEmptyValues.add(header.trim().isEmpty() ? null : header);
+        }
+    }
+    
+    while (processedRows < data.size()) {
+        // Calculate end index for this file
+        int endIndex = Math.min(processedRows + maxRowsPerFile, data.size());
+        
+        // Create a list of rows for this file
+        List<List<String>> fileData = new ArrayList<>();
+        
+        // Always add header if it exists
+        if (headerRow != null) {
+            // Process header: remove special characters
+            List<String> processedHeader = new ArrayList<>();
+            for (String cell : headerRow) {
+                processedHeader.add(processSpecialCharacters(cell));
+            }
+            fileData.add(processedHeader);
+        }
+        
+        // Reset last non-empty values for data rows if header exists
+        if (headerRow != null) {
+            lastNonEmptyValues = new ArrayList<>();
+            for (String header : headerRow) {
+                lastNonEmptyValues.add(header.trim().isEmpty() ? null : header);
+            }
+        } else if (lastNonEmptyValues.isEmpty()) {
+            // Initialize empty values if no header
+            for (int i = 0; i < data.get(0).size(); i++) {
+                lastNonEmptyValues.add(null);
+            }
+        }
+        
+        // Add data rows with processed content and duplicated values for empty cells
+        for (int i = processedRows; i < endIndex; i++) {
+            List<String> originalRow = data.get(i);
+            List<String> processedRow = new ArrayList<>();
+            
+            // Process each cell, duplicate content for empty cells
+            for (int j = 0; j < originalRow.size(); j++) {
+                String cellValue = originalRow.get(j);
+                
+                // Check if cell is empty
+                if (cellValue.trim().isEmpty() && j < lastNonEmptyValues.size() && lastNonEmptyValues.get(j) != null) {
+                    // Use the last non-empty value for this column
+                    cellValue = lastNonEmptyValues.get(j);
+                } else if (!cellValue.trim().isEmpty()) {
+                    // Update the last non-empty value for this column
+                    if (j < lastNonEmptyValues.size()) {
+                        lastNonEmptyValues.set(j, cellValue);
+                    } else {
+                        // Extend the list if needed
+                        while (lastNonEmptyValues.size() <= j) {
+                            lastNonEmptyValues.add(null);
+                        }
+                        lastNonEmptyValues.set(j, cellValue);
+                    }
+                }
+                
+                // Process special characters in the cell
+                processedRow.add(processSpecialCharacters(cellValue));
+            }
+            
+            fileData.add(processedRow);
+        }
+        
+        // Generate output filename
+        String outputFileName = baseFileName + "_html_" + fileCounter + ".htm";
+        String outputPath = new File(csvFilePath).getParent() + File.separator + outputFileName;
+        
+        // Generate HTML content
+        String htmlContent = generateHtmlTable(fileData, hasHeader);
+        
+        // Write HTML to file
+        Files.write(Paths.get(outputPath), htmlContent.getBytes());
+        generatedFiles.add(outputPath);
+        
+        // Update counters
+        processedRows = endIndex;
+        fileCounter++;
+    }
+    
+    System.out.println("CSV successfully converted to HTML tables!");
+    System.out.println("Generated " + (fileCounter - 1) + " HTML files:");
+    for (String file : generatedFiles) {
+        System.out.println(" - " + new File(file).getAbsolutePath());
+    }
+}
+
+/**
+ * Process special characters in cell content:
+ * - Remove `b and `i
+ * - Replace `n with line breaks
+ */
+private static String processSpecialCharacters(String content) {
+    if (content == null) return "";
+    
+    // Remove `b and `i tags
+    String processed = content.replace("`b", "").replace("`i", "");
+    
+    // Removed 'n too
+    processed = processed.replace("`n", " ");
+    
+    return processed;
+}
+
+/**
+ * Generates HTML table content from the given data
+ */
+private static String generateHtmlTable(List<List<String>> data, boolean hasHeader) {
+    StringBuilder html = new StringBuilder();
+    
+    // HTML header (without title)
+    html.append("<!DOCTYPE html>\n");
+    html.append("<html>\n");
+    html.append("<head>\n");
+    html.append("  <meta charset=\"UTF-8\">\n");
+    html.append("  <style>\n");
+    html.append("    table { border-collapse: collapse; width: 100%; }\n");
+    html.append("    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
+    html.append("    th { background-color: #f2f2f2; }\n");
+    html.append("    tr:nth-child(even) { background-color: #f9f9f9; }\n");
+    html.append("  </style>\n");
+    html.append("</head>\n");
+    html.append("<body>\n");
+    
+    // Table
+    html.append("  <table>\n");
+    
+    // Table header
+    if (hasHeader && !data.isEmpty()) {
+        html.append("    <thead>\n");
+        html.append("      <tr>\n");
+        
+        for (String header : data.get(0)) {
+            html.append("        <th>").append(escapeHtml(header)).append("</th>\n");
+        }
+        
+        html.append("      </tr>\n");
+        html.append("    </thead>\n");
+    }
+    
+    // Table body
+    html.append("    <tbody>\n");
+    
+    int startRow = hasHeader ? 1 : 0;
+    for (int i = startRow; i < data.size(); i++) {
+        html.append("      <tr>\n");
+        
+        for (String cell : data.get(i)) {
+            html.append("        <td>").append(escapeHtml(cell)).append("</td>\n");
+        }
+        
+        html.append("      </tr>\n");
+    }
+    
+    html.append("    </tbody>\n");
+    html.append("  </table>\n");
+    
+    // HTML footer
+    html.append("</body>\n");
+    html.append("</html>");
+    
+    return html.toString();
+}
+
+/**
+ * Escapes HTML special characters in text
+ */
+private static String escapeHtml(String text) {
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+}
+/**
+ * Estimates the average size of a row in bytes for HTML output
+ */
+private static int estimateRowSize(List<List<String>> data) {
+    if (data.isEmpty() || data.get(0).isEmpty()) {
+        return 100; // Default estimation if data is empty
+    }
+    
+    // Sample up to 100 rows to estimate size
+    int sampleSize = Math.min(100, data.size());
+    int totalSize = 0;
+    
+    for (int i = 0; i < sampleSize; i++) {
+        List<String> row = data.get(i);
+        int rowSize = 0;
+        
+        // Each cell has <td></td> tags (9 chars) plus content
+        for (String cell : row) {
+            rowSize += 9 + cell.length();
+        }
+        
+        // Add overhead for <tr></tr> tags (9 chars)
+        rowSize += 9;
+        
+        totalSize += rowSize;
+    }
+    
+    // Return average row size plus 20% overhead for HTML formatting
+    return (int)(totalSize / sampleSize * 1.2);
+}
+
+	
     /**
      * Returns a set of offensive words for filtering
      */
@@ -1456,7 +1876,7 @@ private static String[] wrapText(String text, int width) {
         profanityList.add("raghead");
         profanityList.add("towelhead");
         
-        // other slurs
+        // fun shit
         profanityList.add("retard");
         profanityList.add("spaz");
         profanityList.add("dyke");
