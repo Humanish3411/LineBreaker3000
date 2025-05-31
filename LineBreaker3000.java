@@ -7,7 +7,7 @@ import java.util.regex.*;
 public class LineBreaker3000 {
     //rhymes with grug
     public static void main(String[] args) {
-		System.out.println("LineBreaker3000 by Jordon \"Humanish\" Olson. Some rights reserved."
+		System.out.println("LineBreaker3000 by Jordon \"Humanish\" Olson. Some rights reserved.\n");
         Scanner scanner = new Scanner(System.in);
         Random random = new Random();
         
@@ -25,13 +25,13 @@ public class LineBreaker3000 {
 					   + " or (9) for CSVFixer Mode.");
     try {
         mode = scanner.nextInt();
-        if (mode >= 1 && mode <= 8) {
+        if (mode >= 1 && mode <= 9) {
             validInput = true;
         } else {
-            System.out.println("Invalid selection. Please enter a number between 1 and 8.");
+            System.out.println("Invalid selection. Please enter a number between 1 and 9.");
         }
     } catch (InputMismatchException e) {
-        System.out.println("Invalid input. Please enter a number between 1 and 8.");
+        System.out.println("Invalid input. Please enter a number between 1 and 9.");
         scanner.nextLine(); // Clear the invalid input
     }
 }
@@ -1565,7 +1565,7 @@ private static String[] wrapText(String text, int width) {
     
 /**
  * Converts a CSV file to HTML tables, splitting into multiple files if needed
- * - Each output file will be maximum 600KB
+ * - Each output file will have maximum 5000 data rows
  * - Headers are repeated in each file
  * - Files are named based on source file with a sequence number
  */
@@ -1602,14 +1602,12 @@ private static void convertCsvToHtmlTable(String csvFilePath, boolean hasHeader)
         baseFileName = baseFileName.substring(0, baseFileName.lastIndexOf('.'));
     }
     
-    // Calculate approximate row size to estimate how many rows per file
-    int approxRowSize = estimateRowSize(data);
-    int maxRowsPerFile = Math.max(10, (600 * 1024) / approxRowSize); // Ensure at least 10 rows per file
+    // Set maximum rows per file (5000 data rows, not including header)
+    int maxRowsPerFile = 5000;
     
-    System.out.println("Estimated row size: " + approxRowSize + " bytes");
     System.out.println("Maximum rows per file: " + maxRowsPerFile);
     
-    // Generate HTML tables with a maximum of 600KB per file
+    // Generate HTML tables with a maximum of 5000 rows per file
     int fileCounter = 1;
     int processedRows = dataStartIndex;
     List<String> generatedFiles = new ArrayList<>();
